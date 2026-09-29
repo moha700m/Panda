@@ -63,6 +63,19 @@ jobs:
           python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone --hidden-import PySide6.QtCore --hidden-import PySide6.QtGui --hidden-import PySide6.QtWidgets --hidden-import shiboken6 --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" main.py
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
 
+      - name: Report PyInstaller warnings
+        shell: pwsh
+        run: |
+          $warningFile = ".\build\PandaTrainingStandalone\warn-PandaTrainingStandalone.txt"
+          if (!(Test-Path $warningFile)) { throw "PyInstaller warning report is missing" }
+          $warningLines = Get-Content $warningFile
+          if ($warningLines.Count -eq 0) {
+            Write-Host "PyInstaller reported no missing imports."
+          } else {
+            Write-Host "PyInstaller import warnings (reviewed; optional imports may be platform-specific):"
+            $warningLines | ForEach-Object { Write-Host $_ }
+          }
+
       - name: Generate SHA256
         shell: pwsh
         run: |

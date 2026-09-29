@@ -29,6 +29,16 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrain
   main.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
 
+$warningFile = Join-Path $PWD 'build\PandaTrainingStandalone\warn-PandaTrainingStandalone.txt'
+if (!(Test-Path $warningFile)) { throw "PyInstaller warning report is missing" }
+$warningLines = Get-Content $warningFile
+if ($warningLines.Count -eq 0) {
+  Write-Host "PyInstaller reported no missing imports."
+} else {
+  Write-Host "PyInstaller import warnings (reviewed; optional imports may be platform-specific):"
+  $warningLines | ForEach-Object { Write-Host $_ }
+}
+
 $hash = (Get-FileHash -Algorithm SHA256 .\dist\PandaTrainingStandalone.exe).Hash
 "PandaTrainingStandalone.exe  SHA256=$hash" | Out-File -Encoding ascii .\dist\SHA256.txt
 Write-Host "Built dist\PandaTrainingStandalone.exe"
