@@ -11,7 +11,6 @@ jobs:
   build-windows:
     runs-on: windows-latest
     env:
-      VGAMEPAD_SKIP_VIGEMBUS_INSTALL: "true"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
       - uses: actions/checkout@v4
@@ -28,14 +27,36 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: Vendor vgamepad safely
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force vendor | Out-Null
+          python -m pip download vgamepad==0.1.0 --no-deps --no-binary=:all: -d vendor
+          @'
+          import glob, pathlib, shutil, tarfile
+          archive = glob.glob("vendor/vgamepad-*.tar.gz")[0]
+          dest = pathlib.Path("vendor/src")
+          dest.mkdir(parents=True, exist_ok=True)
+          with tarfile.open(archive) as tf:
+              tf.extractall(dest, filter="data")
+          root = next(dest.glob("vgamepad-*"))
+          shutil.copytree(root / "vgamepad", pathlib.Path("vgamepad"), dirs_exist_ok=True)
+          dll = pathlib.Path("vgamepad/win/vigem/client/x64/ViGEmClient.dll")
+          if not dll.exists():
+              raise SystemExit("ViGEmClient.dll missing from vgamepad source")
+          print("Vendored", dll)
+          '@ | python -
+
       - name: Validate source
         shell: pwsh
-        run: python -m py_compile app.py
+        run: |
+          python -m py_compile app.py
+          python -c "import vgamepad; print('vgamepad import OK')"
 
       - name: Build EXE
         shell: pwsh
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone --collect-all vgamepad app.py
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone --collect-submodules vgamepad --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" app.py
 
       - name: Generate SHA256
         shell: pwsh
