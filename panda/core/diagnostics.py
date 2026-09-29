@@ -53,6 +53,13 @@ class DiagnosticLog:
         handler.setFormatter(logging.Formatter("[%(asctime)s] %(message)s", datefmt="%H:%M:%S"))
         self.logger.addHandler(handler)
 
+    def close(self) -> None:
+        """Release the log file so application data can be moved or removed."""
+        for handler in tuple(self.logger.handlers):
+            if isinstance(handler, RotatingFileHandler) and handler.baseFilename == str(self.path):
+                self.logger.removeHandler(handler)
+                handler.close()
+
 
 def monitor_details() -> tuple[int, int, int]:
     """Return primary display width, height, and Windows monitor count."""

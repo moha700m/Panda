@@ -1,7 +1,9 @@
 $ErrorActionPreference = 'Stop'
 
 python -m pip install --upgrade pip
+if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed with exit code $LASTEXITCODE" }
 python -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed with exit code $LASTEXITCODE" }
 
 $vendor = Join-Path $PWD 'vendor'
 New-Item -ItemType Directory -Force $vendor | Out-Null
@@ -14,14 +16,18 @@ if (!(Test-Path ".\vgamepad\win\vigem\client\x64\ViGEmClient.dll")) {
 }
 
 python -m compileall -q panda tests main.py app.py
+if ($LASTEXITCODE -ne 0) { throw "Python source compilation failed with exit code $LASTEXITCODE" }
 python -m unittest discover -s tests -v
+if ($LASTEXITCODE -ne 0) { throw "Python tests failed with exit code $LASTEXITCODE" }
 python -m compileall -q vgamepad
+if ($LASTEXITCODE -ne 0) { throw "Vendored vgamepad compilation failed with exit code $LASTEXITCODE" }
 
 python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone `
   --hidden-import PySide6.QtCore --hidden-import PySide6.QtGui --hidden-import PySide6.QtWidgets `
   --hidden-import shiboken6 `
   --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" `
   main.py
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
 
 $hash = (Get-FileHash -Algorithm SHA256 .\dist\PandaTrainingStandalone.exe).Hash
 "PandaTrainingStandalone.exe  SHA256=$hash" | Out-File -Encoding ascii .\dist\SHA256.txt

@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 7149)
+Total output lines: 653
+
 from __future__ import annotations
 
 import queue
@@ -236,186 +239,7 @@ class MainWindow(QMainWindow):
         self.controller_page.valueChanged.connect(self._setting_changed)
         self.preferences_page.valueChanged.connect(self._setting_changed)
         self.preferences_page.resetRequested.connect(lambda: self._load_profile("Default"))
-        self.response_page.presetSelected.connect(self._apply_preset)
-        self.profiles_page.loadRequested.connect(self._load_profile)
-        self.profiles_page.saveRequested.connect(self._save_profile)
-        self.profiles_page.createRequested.connect(self._create_profile)
-        self.profiles_page.renameRequested.connect(self._rename_profile)
-        self.profiles_page.duplicateRequested.connect(self._duplicate_profile)
-        self.profiles_page.deleteRequested.connect(self._delete_profile)
-        self.profiles_page.selected.connect(lambda _: self.profiles_page.set_active(self.current_profile))
-        self.diagnostics_page.copyRequested.connect(self._copy_diagnostics)
-        self.diagnostics_page.openLogsRequested.connect(self._open_log_folder)
-        self.diagnostics_page.openDataRequested.connect(self._open_data_folder)
-        self.diagnostics_page.openHidHideRequested.connect(self._open_hidhide)
-        self.diagnostics_page.clearLogRequested.connect(self._clear_log)
-        self.diagnostics_page.repairRequested.connect(self._repair_drivers)
-
-    def _restore_geometry(self):
-        if not self.preferences.get("remember_window_position"):
-            return
-        encoded = self.preferences.get("window_geometry")
-        if isinstance(encoded, str) and encoded:
-            try:
-                self.restoreGeometry(QByteArray.fromBase64(encoded.encode("ascii")))
-            except Exception:
-                pass
-
-    def _setup_tray(self):
-        if not QSystemTrayIcon.isSystemTrayAvailable():
-            return
-        tray = QSystemTrayIcon(self._icon, self)
-        menu = QMenu()
-        open_action = QAction("Open Panda", self)
-        open_action.triggered.connect(self._show_from_tray)
-        engine_action = QAction("Start / stop engine", self)
-        engine_action.triggered.connect(self._toggle_engine)
-        exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(self._exit_from_tray)
-        menu.addAction(open_action)
-        menu.addAction(engine_action)
-        menu.addSeparator()
-        menu.addAction(exit_action)
-        tray.setContextMenu(menu)
-        tray.setToolTip("Panda Training Standalone")
-        tray.activated.connect(self._tray_activated)
-        tray.show()
-        self._tray = tray
-
-    def _apply_theme(self):
-        accent = str(self.preferences.get("accent_color", "#C7F36B"))
-        dark = bool(self.preferences.get("dark_mode", True))
-        QApplication.instance().setStyleSheet(stylesheet(dark, accent))
-        pixmap = app_icon(accent)
-        self._icon = QIcon(pixmap)
-        self.setWindowIcon(self._icon)
-        if self._tray:
-            self._tray.setIcon(self._icon)
-
-    def show_page(self, key: str):
-        if key not in self.pages:
-            return
-        self.stack.setCurrentWidget(self.pages[key])
-        title, description = PAGE_META[key]
-        self.page_title.setText(title)
-        self.page_description.setText(description)
-        for name, button in self.nav_buttons.items():
-            button.setChecked(name == key)
-
-    def _sync_settings(self):
-        self.screen_page.set_values(self.engine_settings)
-        self.detection_page.set_values(self.engine_settings)
-        self.response_page.set_values(self.engine_settings)
-        self.preferences_page.set_values(self.preferences)
-        self.controller_page.set_slot_value(self.engine_settings["slot"])
-        self.profiles_page.set_active(self.current_profile)
-
-    def _setting_changed(self, key: str, value):
-        if key in UI_DEFAULTS:
-            old = self.preferences.get(key)
-            self.preferences[key] = value
-            if key == "launch_on_startup":
-                try:
-                    set_launch_on_startup(bool(value))
-                except Exception as exc:
-                    self.preferences[key] = old
-                    self.preferences_page.set_values(self.preferences)
-                    QMessageBox.warning(self, "Windows startup", str(exc))
-                    return
-            if key == "minimize_to_tray" and value and self._tray is None:
-                self.preferences[key] = False
-                self.preferences_page.set_values(self.preferences)
-                QMessageBox.information(self, "System tray unavailable", "Windows did not report an available notification area.")
-                return
-            if key in {"dark_mode", "accent_color"}:
-                self._apply_theme()
-        else:
-            self.engine_settings[key] = value
-            if key == "smooth":
-                self.engine_settings["horizontal_smooth"] = value
-                self.engine_settings["vertical_smooth"] = value
-            self.engine_settings = normalize_settings(self.engine_settings)
-            self.screen_page.set_values(self.engine_settings)
-            self.detection_page.set_values(self.engine_settings)
-            self.response_page.set_values(self.engine_settings)
-            if self.worker and self.worker.is_alive():
-                self.worker.update(self.engine_settings)
-            if key in {"preview_enabled", "capture_monitor"} and (key == "capture_monitor" or not value):
-                self.screen_page.clear_frame()
-                self._last_preview_identity = None
-        self.settings = {**self.engine_settings, **self.preferences}
-        self._save_timer.start(450)
-
-    def _persist(self):
-        try:
-            self.profile_store.save(self.current_profile, self.engine_settings)
-            self.preferences["last_profile"] = self.current_profile
-            self.config_store.save({**self.engine_settings, **self.preferences})
-        except Exception as exc:
-            self.statusBar().showMessage(f"Settings could not be saved: {exc}", 8000)
-            self._log(f"Settings save error: {exc}")
-
-    def _apply_preset(self, name: str):
-        try:
-            self.engine_settings = apply_response_preset(self.engine_settings, name)
-            self._sync_settings()
-            if self.worker and self.worker.is_alive():
-                self.worker.update(self.engine_settings)
-            self._persist()
-            self._log(f"Response preset applied: {name}")
-            self.statusBar().showMessage(f"{name} response preset applied", 4000)
-        except Exception as exc:
-            QMessageBox.warning(self, "Preset", str(exc))
-
-    def _refresh_profile_list(self, selected: str | None = None):
-        self.profiles_page.set_profiles(self.profile_store.list(), selected or self.current_profile)
-        self.profiles_page.set_active(self.current_profile)
-
-    def _load_profile(self, name: str):
-        try:
-            self.engine_settings = self.profile_store.load(name)
-            self.current_profile = name
-            self.preferences["last_profile"] = name
-            self.settings = {**self.engine_settings, **self.preferences}
-            self._sync_settings()
-            self._refresh_profile_list(name)
-            if self.worker and self.worker.is_alive():
-                self.worker.update(self.engine_settings)
-            self._persist()
-            self._log(f"Profile loaded: {name}")
-            self.statusBar().showMessage(f"Loaded profile · {name}", 4000)
-        except Exception as exc:
-            QMessageBox.warning(self, "Load profile", str(exc))
-
-    def _save_profile(self, name: str):
-        if not name:
-            return
-        try:
-            self.profile_store.save(name, self.engine_settings)
-            self.preferences["last_profile"] = self.current_profile
-            self.config_store.save({**self.engine_settings, **self.preferences})
-            self._log(f"Profile saved: {name}")
-            self.statusBar().showMessage(f"Saved profile · {name}", 4000)
-        except Exception as exc:
-            QMessageBox.warning(self, "Save profile", str(exc))
-
-    def _create_profile(self):
-        name, accepted = QInputDialog.getText(self, "Create profile", "Profile name:", text="Custom 2")
-        if not accepted:
-            return
-        try:
-            self.profile_store.create(name.strip(), self.engine_settings)
-            self.current_profile = name.strip()
-            self.preferences["last_profile"] = self.current_profile
-            self._refresh_profile_list(self.current_profile)
-            self._persist()
-            self._log(f"Profile created: {self.current_profile}")
-        except Exception as exc:
-            QMessageBox.warning(self, "Create profile", str(exc))
-
-    def _rename_profile(self, old_name: str):
-        if old_name.casefold() == "default":
-            QMessageBox.information(self, "Default profile", "The Default profile is kept as the recovery profile.")
+        …2149 tokens truncated…profile", "The Default profile is kept as the recovery profile.")
             return
         new_name, accepted = QInputDialog.getText(self, "Rename profile", "New profile name:", text=old_name)
         if not accepted:
@@ -628,6 +452,7 @@ class MainWindow(QMainWindow):
         self._persist()
         if self._tray:
             self._tray.hide()
+        self.log_store.close()
         event.accept()
 
     def _finish_close_when_stopped(self):
