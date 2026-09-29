@@ -1,0 +1,26 @@
+name: Build Panda Training Standalone
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build EXE
+        shell: pwsh
+        run: .\build_windows.ps1
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: PandaTrainingStandalone-Windows
+          path: |
+            dist/PandaTrainingStandalone.exe
+            dist/SHA256.txt
+          if-no-files-found: error
