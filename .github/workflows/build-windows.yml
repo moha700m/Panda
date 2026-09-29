@@ -43,12 +43,15 @@ jobs:
         shell: pwsh
         run: |
           python -m py_compile app.py
-          python -c "import vgamepad; print('vgamepad import OK')"
+          python -m compileall -q vgamepad
+          if (!(Test-Path ".\vgamepad\win\vigem\client\x64\ViGEmClient.dll")) {
+            throw "ViGEmClient.dll missing"
+          }
 
       - name: Build EXE
         shell: pwsh
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone --collect-submodules vgamepad --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" app.py
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" app.py
 
       - name: Generate SHA256
         shell: pwsh
