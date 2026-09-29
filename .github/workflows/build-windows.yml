@@ -31,21 +31,13 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force vendor | Out-Null
-          python -m pip download vgamepad==0.1.0 --no-deps --no-binary=:all: -d vendor
-          @'
-          import glob, pathlib, shutil, tarfile
-          archive = glob.glob("vendor/vgamepad-*.tar.gz")[0]
-          dest = pathlib.Path("vendor/src")
-          dest.mkdir(parents=True, exist_ok=True)
-          with tarfile.open(archive) as tf:
-              tf.extractall(dest, filter="data")
-          root = next(dest.glob("vgamepad-*"))
-          shutil.copytree(root / "vgamepad", pathlib.Path("vgamepad"), dirs_exist_ok=True)
-          dll = pathlib.Path("vgamepad/win/vigem/client/x64/ViGEmClient.dll")
-          if not dll.exists():
-              raise SystemExit("ViGEmClient.dll missing from vgamepad source")
-          print("Vendored", dll)
-          '@ | python -
+          Invoke-WebRequest -Uri "https://github.com/yannbouteiller/vgamepad/archive/refs/tags/v0.1.0.zip" -OutFile "vendor\vgamepad.zip"
+          Expand-Archive -Path "vendor\vgamepad.zip" -DestinationPath "vendor\src" -Force
+          Copy-Item -Path "vendor\src\vgamepad-0.1.0\vgamepad" -Destination ".\vgamepad" -Recurse -Force
+          if (!(Test-Path ".\vgamepad\win\vigem\client\x64\ViGEmClient.dll")) {
+            throw "ViGEmClient.dll missing from vgamepad source"
+          }
+          Write-Host "Vendored vgamepad v0.1.0 without running setup.py"
 
       - name: Validate source
         shell: pwsh
