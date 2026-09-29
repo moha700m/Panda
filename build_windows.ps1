@@ -29,6 +29,17 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrain
   main.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
 
+$process = Start-Process -FilePath ".\dist\PandaTrainingStandalone.exe" -PassThru
+try {
+  Start-Sleep -Seconds 12
+  $process.Refresh()
+  if ($process.HasExited) { throw "PandaTrainingStandalone.exe exited during its startup smoke test (exit code $($process.ExitCode))" }
+  Write-Host "Packaged app remained open without ViGEmBus or a physical controller."
+} finally {
+  $process.Refresh()
+  if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
+}
+
 $warningFile = Join-Path $PWD 'build\PandaTrainingStandalone\warn-PandaTrainingStandalone.txt'
 if (!(Test-Path $warningFile)) { throw "PyInstaller warning report is missing" }
 $warningLines = Get-Content $warningFile

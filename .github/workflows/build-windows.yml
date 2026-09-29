@@ -63,6 +63,20 @@ jobs:
           python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone --hidden-import PySide6.QtCore --hidden-import PySide6.QtGui --hidden-import PySide6.QtWidgets --hidden-import shiboken6 --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" main.py
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
 
+      - name: Smoke test EXE without hardware
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath ".\dist\PandaTrainingStandalone.exe" -PassThru
+          try {
+            Start-Sleep -Seconds 12
+            $process.Refresh()
+            if ($process.HasExited) { throw "PandaTrainingStandalone.exe exited during its startup smoke test (exit code $($process.ExitCode))" }
+            Write-Host "Packaged app remained open without ViGEmBus or a physical controller."
+          } finally {
+            $process.Refresh()
+            if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+
       - name: Report PyInstaller warnings
         shell: pwsh
         run: |
