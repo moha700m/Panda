@@ -1,8 +1,11 @@
 name: Build Panda Training Standalone
 
+permissions:
+  contents: read
+
 on:
   push:
-    branches: [ main ]
+    branches: [ main, ui-v2 ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -13,9 +16,9 @@ jobs:
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -42,7 +45,8 @@ jobs:
       - name: Validate source
         shell: pwsh
         run: |
-          python -m py_compile app.py
+          python -m compileall -q panda tests main.py app.py
+          python -m unittest discover -s tests -v
           python -m compileall -q vgamepad
           if (!(Test-Path ".\vgamepad\win\vigem\client\x64\ViGEmClient.dll")) {
             throw "ViGEmClient.dll missing"
@@ -51,7 +55,7 @@ jobs:
       - name: Build EXE
         shell: pwsh
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" app.py
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone --hidden-import PySide6.QtCore --hidden-import PySide6.QtGui --hidden-import PySide6.QtWidgets --hidden-import shiboken6 --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" main.py
 
       - name: Generate SHA256
         shell: pwsh
@@ -61,7 +65,7 @@ jobs:
           Write-Host "SHA256=$hash"
 
       - name: Upload EXE
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: PandaTrainingStandalone-Windows
           path: |

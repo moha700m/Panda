@@ -13,12 +13,15 @@ if (!(Test-Path ".\vgamepad\win\vigem\client\x64\ViGEmClient.dll")) {
   throw "ViGEmClient.dll missing from vgamepad source"
 }
 
-python -m py_compile app.py
+python -m compileall -q panda tests main.py app.py
+python -m unittest discover -s tests -v
 python -m compileall -q vgamepad
 
 python -m PyInstaller --noconfirm --clean --onefile --windowed --name PandaTrainingStandalone `
+  --hidden-import PySide6.QtCore --hidden-import PySide6.QtGui --hidden-import PySide6.QtWidgets `
+  --hidden-import shiboken6 `
   --add-binary "vgamepad\win\vigem\client\x64\ViGEmClient.dll;vgamepad\win\vigem\client\x64" `
-  app.py
+  main.py
 
 $hash = (Get-FileHash -Algorithm SHA256 .\dist\PandaTrainingStandalone.exe).Hash
 "PandaTrainingStandalone.exe  SHA256=$hash" | Out-File -Encoding ascii .\dist\SHA256.txt
