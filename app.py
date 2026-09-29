@@ -3,7 +3,7 @@ from ctypes import wintypes
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk,messagebox
-import dxcam,numpy as np,vgamepad as vg
+import cv2,dxcam,numpy as np,vgamepad as vg
 
 NAME='Panda Training Standalone'; VER='1.0.0'
 DATA=Path(os.getenv('APPDATA',Path.home()))/'PandaTrainingStandalone'; CFG=DATA/'config.json'
