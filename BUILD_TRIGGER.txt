@@ -2,3 +2,4 @@ Windows build trigger for Panda Training Standalone v1.
 Rebuild after OpenCV import fix.
 Rebuild after CI non-interactive driver fix.
 Rebuild with split CI stages.
+Rebuild with vendored vgamepad source.
