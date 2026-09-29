@@ -1,1 +1,2 @@
 Windows build trigger for Panda Training Standalone v1.
+Rebuild after OpenCV import fix.
