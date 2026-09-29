@@ -1,4 +1,5 @@
-dxcam==0.0.5
+dxcam==0.3.0
 numpy==2.2.6
-vgamepad @ git+https://github.com/yannbouteiller/vgamepad.git@main
-pyinstaller==6.16.0
+opencv-python-headless==4.12.0.88
+vgamepad==0.1.0
+pyinstaller==6.22.3
