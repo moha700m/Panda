@@ -4,3 +4,4 @@ Rebuild after CI non-interactive driver fix.
 Rebuild with split CI stages.
 Rebuild with vendored vgamepad source.
 Rebuild using direct vgamepad release ZIP.
+Rebuild without requiring ViGEmBus during validation.
