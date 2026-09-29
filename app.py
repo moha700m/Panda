@@ -3,9 +3,9 @@ from ctypes import wintypes
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk,messagebox
-import cv2,dxcam,numpy as np,vgamepad as vg
+import cv2,dxcam,numpy as np
 
-NAME='Panda Training Standalone'; VER='1.0.0'
+NAME='Panda Training Standalone'; VER='1.0.1'
 DATA=Path(os.getenv('APPDATA',Path.home()))/'PandaTrainingStandalone'; CFG=DATA/'config.json'
 VIGEM='https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe'
 HIDE='https://github.com/nefarius/HidHide/releases/download/v1.5.230.0/HidHide_1.5.230_x64.exe'
@@ -44,13 +44,22 @@ def xdll():
   except:pass
  raise RuntimeError('XInput not found')
 class Bridge:
- def __init__(s,slot):s.slot=slot;s.x=xdll();s.v=vg.VX360Gamepad()
+ def __init__(s,slot):
+  s.slot=slot;s.x=xdll()
+  try:
+   import vgamepad as vg
+  except Exception as e:
+   if 'VIGEM_ERROR_BUS_NOT_FOUND' in str(e):
+    raise RuntimeError('ViGEmBus is not installed or not running. Use Install / Repair drivers, reboot Windows once, then reopen Panda.') from e
+   raise
+  s.vg=vg
+  s.v=vg.VX360Gamepad()
  def read(s):
   st=ST();return st if s.x.XInputGetState(s.slot,ctypes.byref(st))==0 else None
  def write(s,st,cx=0,cy=0):
   g=st.Gamepad
   for m,n in BMAP:
-   b=getattr(vg.XUSB_BUTTON,n);s.v.press_button(button=b) if g.wButtons&m else s.v.release_button(button=b)
+   b=getattr(s.vg.XUSB_BUTTON,n);s.v.press_button(button=b) if g.wButtons&m else s.v.release_button(button=b)
   s.v.left_trigger(value=int(g.bLeftTrigger));s.v.right_trigger(value=int(g.bRightTrigger));s.v.left_joystick(x_value=int(g.sThumbLX),y_value=int(g.sThumbLY));s.v.right_joystick(x_value=int(cl(g.sThumbRX+cx,-32768,32767)),y_value=int(cl(g.sThumbRY+cy,-32768,32767)));s.v.update()
  def reset(s):
   try:s.v.reset();s.v.update()
