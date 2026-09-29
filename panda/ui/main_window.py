@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QStackedWidget,
     QSystemTrayIcon,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -46,26 +47,18 @@ from panda.ui.widgets import StatusBadge, app_icon
 
 REPOSITORY = "https://github.com/moha700m/Panda"
 PAGE_META = {
-    "dashboard": ("Dashboard", "Engine health and current training session."),
-    "screen": ("Screen", "Capture monitor, region and preview controls."),
-    "detection": ("Detection", "Color filtering, target selection and tracking."),
-    "response": ("Response", "Tune correction response and activation."),
-    "controller": ("Controller", "Live XInput telemetry and button states."),
-    "profiles": ("Profiles", "Save, organize and switch training profiles."),
-    "diagnostics": ("Diagnostics", "System checks, installer actions and logs."),
-    "settings": ("Settings", "Window behavior and appearance preferences."),
-    "about": ("About", "Product and release information."),
+    "dashboard": ("Home", "Connect your virtual controller and check that everything is ready."),
+    "controller": ("Controller", "Connect the virtual controller and view live input."),
+    "profiles": ("Profiles", "Save and switch your settings."),
+    "diagnostics": ("Status & Repair", "Check drivers and view application logs."),
+    "settings": ("Settings", "Capture, detection, response and app preferences."),
 }
 NAV = (
-    ("dashboard", "▦", "Dashboard"),
-    ("screen", "▧", "Screen"),
-    ("detection", "◉", "Detection"),
-    ("response", "⌁", "Response"),
+    ("dashboard", "⌂", "Home"),
     ("controller", "◎", "Controller"),
     ("profiles", "▣", "Profiles"),
-    ("diagnostics", "◌", "Diagnostics"),
+    ("diagnostics", "◌", "Status"),
     ("settings", "⚙", "Settings"),
-    ("about", "ⓘ", "About"),
 )
 
 
@@ -105,8 +98,8 @@ class MainWindow(QMainWindow):
         self._driver_thread: threading.Thread | None = None
 
         self.setWindowTitle(f"Panda Training Standalone {__version__}")
-        self.setMinimumSize(1080, 690)
-        self.resize(1280, 840)
+        self.setMinimumSize(900, 620)
+        self.resize(1060, 720)
         self._icon = QIcon(app_icon(self.preferences.get("accent_color", "#C7F36B")))
         self.setWindowIcon(self._icon)
         self._build_shell()
@@ -142,7 +135,7 @@ class MainWindow(QMainWindow):
 
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(222)
+        sidebar.setFixedWidth(190)
         side_layout = QVBoxLayout(sidebar)
         side_layout.setContentsMargins(18, 22, 14, 18)
         side_layout.setSpacing(12)
@@ -161,7 +154,7 @@ class MainWindow(QMainWindow):
         brand.addStretch(1)
         side_layout.addLayout(brand)
         side_layout.addSpacing(12)
-        product = QLabel("Training Vision Controller")
+        product = QLabel("Training Controller")
         product.setObjectName("muted")
         side_layout.addWidget(product)
         separator = QFrame()
@@ -210,16 +203,15 @@ class MainWindow(QMainWindow):
         self.diagnostics_page = DiagnosticsPage()
         self.preferences_page = PreferencesPage()
         self.about_page = AboutPage(__version__, REPOSITORY)
+        self.settings_tabs = QTabWidget()
+        for label, page in (("Screen", self.screen_page), ("Detection", self.detection_page), ("Response", self.response_page), ("General", self.preferences_page), ("About", self.about_page)):
+            self.settings_tabs.addTab(page, label)
         self.pages = {
             "dashboard": self.dashboard,
-            "screen": self.screen_page,
-            "detection": self.detection_page,
-            "response": self.response_page,
             "controller": self.controller_page,
             "profiles": self.profiles_page,
             "diagnostics": self.diagnostics_page,
-            "settings": self.preferences_page,
-            "about": self.about_page,
+            "settings": self.settings_tabs,
         }
         for page in self.pages.values():
             self.stack.addWidget(page)
@@ -234,6 +226,8 @@ class MainWindow(QMainWindow):
         self.detection_page.valueChanged.connect(self._setting_changed)
         self.response_page.valueChanged.connect(self._setting_changed)
         self.controller_page.valueChanged.connect(self._setting_changed)
+        self.controller_page.bridgeStartRequested.connect(self.start_engine)
+        self.controller_page.bridgeStopRequested.connect(self.stop_engine)
         self.preferences_page.valueChanged.connect(self._setting_changed)
         self.preferences_page.resetRequested.connect(lambda: self._load_profile("Default"))
         self.response_page.presetSelected.connect(self._apply_preset)
@@ -525,7 +519,7 @@ class MainWindow(QMainWindow):
             self.close()
 
     def _refresh_live_preview(self):
-        if self.stack.currentWidget() is not self.screen_page or not self.worker or not self.worker.is_alive():
+        if self.stack.currentWidget() is not self.settings_tabs or self.settings_tabs.currentWidget() is not self.screen_page or not self.worker or not self.worker.is_alive():
             return
         preview = self.worker.latest_preview()
         if preview is None:

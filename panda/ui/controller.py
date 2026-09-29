@@ -1,18 +1,20 @@
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QComboBox, QGridLayout, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QComboBox, QGridLayout, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from panda.ui.widgets import StatusBadge, make_card
 
 
 class ControllerPage(QWidget):
     valueChanged = Signal(str, object)
+    bridgeStartRequested = Signal()
+    bridgeStopRequested = Signal()
 
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 12, 0)
         layout.setSpacing(14)
-        card, card_layout = make_card("Controller bridge", "Physical XInput is copied to the virtual Xbox controller; CV output can affect RX and RY only.")
+        card, card_layout = make_card("Virtual Xbox controller", "Connect the virtual pad for games and apps. Panda will pass through input from a physical XInput controller when one is connected.")
         status_row = QHBoxLayout()
         self.physical = StatusBadge("NOT FOUND")
         self.virtual = StatusBadge("OFFLINE")
@@ -31,6 +33,18 @@ class ControllerPage(QWidget):
         status_row.addWidget(self.slot)
         status_row.addWidget(self.slot_select)
         card_layout.addLayout(status_row)
+        action_row = QHBoxLayout()
+        self.connect_button = QPushButton("CONNECT VIRTUAL CONTROLLER")
+        self.connect_button.setObjectName("primaryButton")
+        self.connect_button.clicked.connect(self.bridgeStartRequested)
+        self.disconnect_button = QPushButton("DISCONNECT")
+        self.disconnect_button.setObjectName("dangerButton")
+        self.disconnect_button.setEnabled(False)
+        self.disconnect_button.clicked.connect(self.bridgeStopRequested)
+        action_row.addWidget(self.connect_button)
+        action_row.addWidget(self.disconnect_button)
+        action_row.addStretch(1)
+        card_layout.addLayout(action_row)
         layout.addWidget(card)
 
         inputs, inputs_layout = make_card("Live inputs", "Stick values are shown as a percentage of their range. Triggers are shown from 0 to 100%.")
@@ -70,6 +84,9 @@ class ControllerPage(QWidget):
         connected = data.get("controller_connected", False)
         self.physical.set_state("CONNECTED" if connected else "NOT FOUND")
         self.virtual.set_state(data.get("virtual_controller", "Offline").upper())
+        running = bool(data.get("running"))
+        self.connect_button.setEnabled(not running)
+        self.disconnect_button.setEnabled(running)
         slot = data.get("slot")
         self.slot.setText(f"XInput slot: {slot if slot is not None else 'Auto'}")
         values = data.get("inputs", {})
